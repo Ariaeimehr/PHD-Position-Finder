@@ -190,9 +190,9 @@ class DatabaseManager:
 # NETWORK & SCRAPING ENGINE
 # ==============================================================================
 class SafeScraper:
-    """Resilient HTTP client with retry strategies, jitter delays, and Cloudflare bypass."""
+    """Resilient HTTP client with retry strategies, jitter delays, and Proxy support."""
     def __init__(self):
-        # استفاده از cloudscraper به جای requests معمولی برای دور زدن کلودفلر
+        import cloudscraper # مطمئن شو این بالا ایمپورت شده باشه
         self.session = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
@@ -209,6 +209,15 @@ class SafeScraper:
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
+        
+        # خواندن پروکسی از تنظیمات گیت‌هاب و اعمال آن روی درخواست‌ها
+        proxy_url = os.getenv("PROXY_URL")
+        if proxy_url:
+            self.session.proxies = {
+                "http": proxy_url,
+                "https": proxy_url
+            }
+            logger.info("🔒 Proxy configured successfully for scraping.")
 
     def safe_get(self, url: str, params: Optional[Dict] = None, referer: Optional[str] = None) -> Optional[requests.Response]:
         """Performs request with randomized jitter delay to respect server rates."""
@@ -217,13 +226,16 @@ class SafeScraper:
         time.sleep(random.uniform(min_delay, max_delay))
 
         try:
-            # کلوداسکریپر خودش هدرهای مناسب رو میسازه، پس نیازی به هدرهای دستی قبلی نیست
             headers = {"Referer": referer} if referer else {}
             response = self.session.get(url, params=params, headers=headers, timeout=25)
             response.raise_for_status()
             return response
-        except Exception as e:
+        except requests.exceptions.HTTPError as e:
+            # اگر با وجود پروکسی ارور 403 گرفتیم
             logger.warning(f"HTTP error requesting {url}: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Connection/Proxy error for {url}: {e}")
             return None
 # ==============================================================================
 # DATA FILTERS (Topic Matching, Country Validation, Funding Status)
