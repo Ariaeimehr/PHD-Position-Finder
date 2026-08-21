@@ -294,7 +294,7 @@ class BaseScraper:
         raise NotImplementedError
 
 class EuraxessScraper(BaseScraper):
-    """Scrapes official European Commission EURAXESS portal via public RSS & Job API."""
+    """Scrapes official European Commission EURAXESS portal directly from HTML."""
     NAME = "EURAXESS (European Commission)"
     BASE_URL = "https://euraxess.ec.europa.eu"
 
@@ -304,34 +304,36 @@ class EuraxessScraper(BaseScraper):
 
         for keyword in keywords:
             query = urllib.parse.quote(keyword)
-            # EURAXESS RSS Job feed for early career / PhD researchers (First Stage Researcher R1)
-            rss_url = f"https://euraxess.ec.europa.eu/jobs/search/rss?keywords={query}&f%5B0%5D=profile%3AFirst%20Stage%20Researcher%20%28R1%29"
+            # لینک جدید سرچ سایت
+            search_url = f"https://euraxess.ec.europa.eu/jobs/search?keywords={query}"
             
             try:
-                resp = self.client.safe_get(rss_url)
+                resp = self.client.safe_get(search_url)
                 if not resp or not resp.content:
                     continue
 
-                feed = feedparser.parse(resp.content)
-                for entry in feed.entries[:15]:  # Process top matching entries
-                    title = entry.get("title", "").strip()
-                    link = entry.get("link", "").strip()
-                    summary = entry.get("summary", "") or entry.get("description", "")
-                    
-                    # Clean HTML from summary
-                    soup = BeautifulSoup(summary, "html.parser")
-                    clean_desc = soup.get_text(separator=" ", strip=True)
+                soup = BeautifulSoup(resp.content, "html.parser")
+                # پیدا کردن باکس‌های شغلی در قالب جدید سایت
+                job_cards = soup.select("div.node--type-job-opportunity, .views-row")
 
-                    # Extract metadata if available in summary
+                for card in job_cards[:15]:
+                    title_elem = card.select_one("h2 a, .field--name-title a")
+                    if not title_elem:
+                        continue
+                        
+                    title = title_elem.get_text(strip=True)
+                    link = urllib.parse.urljoin(self.BASE_URL, title_elem.get("href", ""))
+                    
+                    desc_elem = card.select_one(".field--name-body, .job-description, p")
+                    clean_desc = desc_elem.get_text(separator=" ", strip=True) if desc_elem else ""
+
                     country = "Europe / International"
                     institution = "European Research Institution"
                     
-                    # Parse country and institution hints from title or description
                     if " - " in title:
                         parts = title.rsplit(" - ", 1)
-                        country_guess = parts[-1].strip()
-                        if len(country_guess) < 30:
-                            country = country_guess
+                        if len(parts[-1].strip()) < 30:
+                            country = parts[-1].strip()
 
                     topic_match = PositionFilter.match_topic(f"{title} {clean_desc}")
                     if not topic_match:
@@ -342,19 +344,16 @@ class EuraxessScraper(BaseScraper):
                     if PositionFilter.is_in_usa(country, institution, f"{title} {clean_desc}"):
                         continue
 
-                    if not PositionFilter.is_fully_funded(clean_desc, "EURAXESS R1 Fellowship"):
+                    if not PositionFilter.is_fully_funded(clean_desc, "EURAXESS R1"):
                         continue
-
-                    # Extract potential supervisor name from description
-                    supervisor = self._extract_supervisor(clean_desc)
 
                     pos = PhDPosition(
                         title=title,
                         institution=institution,
                         country=country,
-                        supervisor=supervisor,
+                        supervisor=None,
                         description=clean_desc[:350] + ("..." if len(clean_desc) > 350 else ""),
-                        funding_status="Fully Funded (MSCA / European Research Contract)",
+                        funding_status="Fully Funded (MSCA / EU Standard)",
                         url=link,
                         matched_topic=topic_name,
                         matched_keyword=matched_kw,
@@ -366,7 +365,6 @@ class EuraxessScraper(BaseScraper):
                 logger.error(f"[{self.NAME}] Error processing keyword '{keyword}': {e}")
 
         return results
-
     def _extract_supervisor(self, text: str) -> Optional[str]:
         patterns = ["supervised by", "supervisor:", "pi:", "prof.", "professor", "dr.", "contact:"]
         lower = text.lower()
