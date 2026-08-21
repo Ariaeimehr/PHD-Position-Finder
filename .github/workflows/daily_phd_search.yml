@@ -35,5 +35,6 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           RUN_ON_STARTUP: 'true'
+          PROXY_URL: ${{ secrets.PROXY_URL }}
         run: |
           python -c "from phd_hunter import PhDHunterPipeline; PhDHunterPipeline().run_daily_search()"
