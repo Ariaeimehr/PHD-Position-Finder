@@ -190,9 +190,16 @@ class DatabaseManager:
 # NETWORK & SCRAPING ENGINE
 # ==============================================================================
 class SafeScraper:
-    """Resilient HTTP client with retry strategies, jitter delays, and headers."""
+    """Resilient HTTP client with retry strategies, jitter delays, and Cloudflare bypass."""
     def __init__(self):
-        self.session = requests.Session()
+        # استفاده از cloudscraper به جای requests معمولی برای دور زدن کلودفلر
+        self.session = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
         retry_strategy = Retry(
             total=3,
             backoff_factor=1.5,
@@ -203,43 +210,21 @@ class SafeScraper:
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
 
-    def get_headers(self, referer: Optional[str] = None) -> Dict[str, str]:
-        headers = {
-            "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "cross-site"
-        }
-        if referer:
-            headers["Referer"] = referer
-        return headers
-
     def safe_get(self, url: str, params: Optional[Dict] = None, referer: Optional[str] = None) -> Optional[requests.Response]:
         """Performs request with randomized jitter delay to respect server rates."""
         min_delay = float(os.getenv("MIN_REQUEST_DELAY", 2.0))
         max_delay = float(os.getenv("MAX_REQUEST_DELAY", 5.0))
-        delay = random.uniform(min_delay, max_delay)
-        time.sleep(delay)
+        time.sleep(random.uniform(min_delay, max_delay))
 
         try:
-            response = self.session.get(
-                url,
-                params=params,
-                headers=self.get_headers(referer),
-                timeout=20
-            )
+            # کلوداسکریپر خودش هدرهای مناسب رو میسازه، پس نیازی به هدرهای دستی قبلی نیست
+            headers = {"Referer": referer} if referer else {}
+            response = self.session.get(url, params=params, headers=headers, timeout=25)
             response.raise_for_status()
             return response
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logger.warning(f"HTTP error requesting {url}: {e}")
             return None
-
 # ==============================================================================
 # DATA FILTERS (Topic Matching, Country Validation, Funding Status)
 # ==============================================================================
