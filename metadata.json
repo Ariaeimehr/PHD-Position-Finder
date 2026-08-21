@@ -1,0 +1,6 @@
+{
+  "name": "PhD Position Hunter (Global Ex-USA)",
+  "description": "Automated Python scraper and live monitor for fully-funded PhD vacancies in Federated Learning, Human Activity Recognition, and Transformer Models with Telegram and Email alerting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

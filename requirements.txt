@@ -1,0 +1,24 @@
+# Python Environment Dependencies for PhD Hunter Scraper
+# Install with: pip install -r requirements.txt
+
+# HTTP Networking & Scraping
+requests>=2.31.0
+urllib3>=2.0.7
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+
+# Feed parsing for academic RSS & APIs
+feedparser>=6.0.11
+
+# Task Scheduling
+schedule>=1.2.1
+
+# Environment variable loading
+python-dotenv>=1.0.1
+
+# Data handling & validation
+pydantic>=2.6.0
+python-dateutil>=2.8.2
+
+# Optional: rich terminal UI for logging
+rich>=13.7.0

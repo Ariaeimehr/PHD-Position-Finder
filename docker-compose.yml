@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  phd-hunter:
+    build: .
+    container_name: phd_position_hunter
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persist SQLite database and logs across container restarts
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/phd_positions.db
+      - PYTHONUNBUFFERED=1
