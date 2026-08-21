@@ -23,6 +23,7 @@ import sqlite3
 import hashlib
 import smtplib
 import urllib.parse
+import cloudscraper
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
