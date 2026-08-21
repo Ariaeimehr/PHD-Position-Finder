@@ -22,3 +22,5 @@ python-dateutil>=2.8.2
 
 # Optional: rich terminal UI for logging
 rich>=13.7.0
+
+cloudscraper>=1.2.71
