@@ -2,48 +2,38 @@ name: Daily PhD Position Search (Ex-USA)
 
 on:
   schedule:
-    # Runs at 07:00 UTC every day (09:00 Central European Time)
-    - cron: '0 7 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+    - cron: '0 7 * * *' # هر روز ساعت ۷ صبح UTC
+  workflow_dispatch:
 
 jobs:
   scrape-and-notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Restore SQLite Database Cache
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: phd_positions.db
           key: phd-db-${{ github.run_id }}
-          restore-keys: |
-            phd-db-
-
-      - name: Run PhD Position Hunter
+          restore-keys: phd-db-
+      - name: Run Scraper
         env:
           TELEGRAM_ENABLED: ${{ secrets.TELEGRAM_ENABLED || 'true' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED || 'false' }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER || 'smtp.gmail.com' }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_PORT: '587'
           SMTP_SENDER_EMAIL: ${{ secrets.SMTP_SENDER_EMAIL }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
           RUN_ON_STARTUP: 'true'
         run: |
-          # Run once on schedule and exit
-          python -c "from phd_hunter import PhDHunterPipeline; pipeline = PhDHunterPipeline(); pipeline.run_daily_search()"
+          python -c "from phd_hunter import PhDHunterPipeline; PhDHunterPipeline().run_daily_search()"
